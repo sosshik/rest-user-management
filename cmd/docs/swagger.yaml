@@ -1,0 +1,366 @@
+definitions:
+  domain.CreateUserReq:
+    properties:
+      first_name:
+        type: string
+      last_name:
+        type: string
+      nickname:
+        type: string
+      password:
+        type: string
+    type: object
+  domain.CreateUserResp:
+    properties:
+      message:
+        type: string
+      oid:
+        type: string
+    type: object
+  domain.ErrorResp:
+    properties:
+      error:
+        type: string
+    type: object
+  domain.GetUserListResp:
+    properties:
+      page:
+        type: integer
+      total_users:
+        type: integer
+      users:
+        items:
+          $ref: '#/definitions/domain.GetUserResp'
+        type: array
+    type: object
+  domain.GetUserResp:
+    properties:
+      created_at:
+        type: string
+      first_name:
+        type: string
+      last_name:
+        type: string
+      nickname:
+        type: string
+      oid:
+        type: string
+      state:
+        type: integer
+      updated_at:
+        type: string
+    type: object
+  domain.LoginReq:
+    properties:
+      nickname:
+        type: string
+      password:
+        type: string
+    type: object
+  domain.LoginResp:
+    properties:
+      message:
+        type: string
+      token:
+        type: string
+    type: object
+  domain.MessageResp:
+    properties:
+      message:
+        type: string
+    type: object
+  domain.UpdatePasswordReq:
+    properties:
+      password:
+        type: string
+    type: object
+  domain.UpdateUserReq:
+    properties:
+      first_name:
+        type: string
+      last_name:
+        type: string
+      nickname:
+        type: string
+    type: object
+  domain.VoteReq:
+    properties:
+      oid:
+        type: string
+      value:
+        type: integer
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: This is User Managment API
+  title: User Managment API
+  version: "1.0"
+paths:
+  /users:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a paginated list of user profiles
+      parameters:
+      - description: Page number
+        in: query
+        name: page
+        type: integer
+      - description: Items per page
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Paginated list of user profiles
+          schema:
+            $ref: '#/definitions/domain.GetUserListResp'
+        "500":
+          description: Failed to get users list
+          schema:
+            $ref: '#/definitions/domain.ErrorResp'
+      summary: Get a paginated list of users
+      tags:
+      - users
+    post:
+      consumes:
+      - application/json
+      description: Create a new user profile with the provided information
+      parameters:
+      - description: User profile details
+        in: body
+        name: user
+        required: true
+        schema:
+          $ref: '#/definitions/domain.CreateUserReq'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/domain.CreateUserResp'
+        "400":
+          description: Invalid request payload
+          schema:
+            $ref: '#/definitions/domain.ErrorResp'
+        "500":
+          description: Failed to create user profile
+          schema:
+            $ref: '#/definitions/domain.ErrorResp'
+      summary: Create a user profile
+      tags:
+      - users
+  /users/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a user profile by the provided user ID
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Profile successfully deleted
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/domain.ErrorResp'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/domain.ErrorResp'
+      summary: Delete user by ID
+      tags:
+      - users
+    get:
+      consumes:
+      - application/json
+      description: Retrieve user details by the provided user ID
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User profile details
+          schema:
+            $ref: '#/definitions/domain.GetUserResp'
+        "400":
+          description: Wrong UserId
+          schema:
+            $ref: '#/definitions/domain.ErrorResp'
+        "500":
+          description: Failed to get user profile
+          schema:
+            $ref: '#/definitions/domain.ErrorResp'
+      summary: Get user by ID
+      tags:
+      - users
+    put:
+      consumes:
+      - application/json
+      description: Update an existing user profile with the provided information
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: User credentials
+        in: body
+        name: user
+        required: true
+        schema:
+          $ref: '#/definitions/domain.UpdateUserReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.MessageResp'
+        "400":
+          description: Invalid request payload
+          schema:
+            $ref: '#/definitions/domain.ErrorResp'
+        "500":
+          description: Failed to update user profile
+          schema:
+            $ref: '#/definitions/domain.ErrorResp'
+      summary: Update user profile
+      tags:
+      - users
+  /users/{id}/password:
+    put:
+      consumes:
+      - application/json
+      description: Update the password for the authenticated user or admin
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: User credentials
+        in: body
+        name: user
+        required: true
+        schema:
+          $ref: '#/definitions/domain.UpdatePasswordReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.MessageResp'
+        "400":
+          description: Invalid request payload
+          schema:
+            $ref: '#/definitions/domain.ErrorResp'
+        "500":
+          description: Failed to update user password
+          schema:
+            $ref: '#/definitions/domain.ErrorResp'
+      summary: Update user password
+      tags:
+      - users
+  /users/login:
+    post:
+      consumes:
+      - application/json
+      description: Log in with the provided credentials and generate a JWT token
+      parameters:
+      - description: User credentials
+        in: body
+        name: user
+        required: true
+        schema:
+          $ref: '#/definitions/domain.LoginReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.LoginResp'
+        "400":
+          description: Invalid request payload
+          schema:
+            $ref: '#/definitions/domain.ErrorResp'
+        "401":
+          description: Failed to log in
+          schema:
+            $ref: '#/definitions/domain.ErrorResp'
+      summary: Log in and generate JWT token
+      tags:
+      - users
+  /vote:
+    post:
+      consumes:
+      - application/json
+      description: Vote for a user by id
+      parameters:
+      - description: Vote credentials
+        in: body
+        name: vote
+        required: true
+        schema:
+          $ref: '#/definitions/domain.VoteReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.MessageResp'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/domain.ErrorResp'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/domain.ErrorResp'
+      summary: Vote
+      tags:
+      - vote
+    put:
+      consumes:
+      - application/json
+      description: Change Vote for a user by id
+      parameters:
+      - description: Vote credentials
+        in: body
+        name: vote
+        required: true
+        schema:
+          $ref: '#/definitions/domain.VoteReq'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.MessageResp'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/domain.ErrorResp'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/domain.ErrorResp'
+      summary: Change Vote
+      tags:
+      - vote
+swagger: "2.0"
