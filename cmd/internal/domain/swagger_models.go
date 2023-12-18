@@ -64,5 +64,5 @@ type ErrorResp struct {
 
 type VoteReq struct {
 	OID   uuid.UUID `json:"oid"`
-	Value int       `json:"value"`
+	Emoji int       `json:"emoji"`
 }

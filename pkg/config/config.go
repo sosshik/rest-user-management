@@ -16,11 +16,19 @@ type Config struct {
 	ConnCheck   bool   `env:"CONN_CHECK" envDefault:"true"`
 	ReconnTries int    `env:"RECONN_TRIES" envDefault:"5"`
 	Redis       Redis
+	CH          ClickHouseConfig
 }
 type Redis struct {
 	Addr           string `env:"REDIS_ADDR" envDefault:"localhost:6379"`
 	ExpTimeSeconds int    `env:"REDIS_EXP_TIME" envDefault:"60"`
 	DBIndex        int    `env:"REDIS_DB_INDEX" envDefault:"0"`
+}
+
+type ClickHouseConfig struct {
+	Addr string `env:"CH_ADDR" envDefault:"localhost:9000"`
+	DB   string `env:"CH_DB"`
+	User string `env:"CH_USER" envDefault:"default"`
+	Pass string `env:"CH_PASS" envDefault:""`
 }
 
 var once sync.Once
@@ -34,6 +42,7 @@ func GetConfig() *Config {
 
 			var cfg Config
 			var redis Redis
+			var ch ClickHouseConfig
 
 			if err := env.Parse(&cfg); err != nil {
 				log.Fatal(err)
@@ -41,7 +50,11 @@ func GetConfig() *Config {
 			if err := env.Parse(&redis); err != nil {
 				log.Fatal(err)
 			}
+			if err := env.Parse(&ch); err != nil {
+				log.Fatal(err)
+			}
 			cfg.Redis = redis
+			cfg.CH = ch
 
 			configInstance = &cfg
 		})

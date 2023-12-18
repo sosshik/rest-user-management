@@ -128,7 +128,7 @@
 ```
 {
     "oid": "oid of user that you want to rate",
-    "value": 1 (or -1)
+    "emoji": 1
 }
 ```
 - Response:
@@ -169,9 +169,9 @@
     - state int
     - user_role int
     - rating
-2. Votes Table:
+2. Emotions: 
     - id (Primary Key) int
     - from_oid UUID (Foreign Key for oid from, user profiles table)
     - to_oid UUID 
-    - value int
+    - emoji_id int
     - voted_at timestamp
