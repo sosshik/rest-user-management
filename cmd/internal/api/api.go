@@ -417,12 +417,25 @@ func (a *API) HandleGetUsersList(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to get users list"})
 	}
 
+	var oids []uuid.UUID
+
+	for _, user := range users {
+		oids = append(oids, user.OID)
+	}
+
+	ratings, err := a.Rating.GetRatingForList(oids)
+	if err != nil {
+		log.Warnf("HandleGetUsersList: %s", err)
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to get users list"})
+	}
+
+	fmt.Println(len(users), ratings)
+
 	for i, user := range users {
-		users[i].Rating, err = a.Rating.GetRating(user.OID)
-		if err != nil {
-			users[i].Rating = 0
-			log.Warnf("HandleGetUsersList: unable to get rating for user with id %s", user.OID.String())
+		if ratings[user.OID] > 0 {
+			users[i].Rating = ratings[user.OID]
 		}
+
 	}
 
 	totalUsers := len(users)

@@ -42,6 +42,7 @@ type RatingManager interface {
 	UpdateProfileRating(vote VoteDTO, oldRating int32) error
 	GetRating(userId uuid.UUID) (int, error)
 	GetRatingSeparately(userId uuid.UUID) (string, error)
+	GetRatingForList(oids []uuid.UUID) (map[uuid.UUID]int, error)
 }
 
 type DomainInterface interface {

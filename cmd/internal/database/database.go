@@ -156,7 +156,7 @@ func (d *Database) GetUsersList(pageSize int, offset int) ([]domain.UserProfileD
 
 	for rows.Next() {
 		var user UserProfile
-		err := rows.Scan(&user.OID, &user.Nickname, &user.FirstName, &user.LastName, &user.CreatedAt, &user.UpdatedAt, &user.State, &user.Role, &user.Rating)
+		err := rows.Scan(&user.OID, &user.Nickname, &user.FirstName, &user.LastName, &user.CreatedAt, &user.UpdatedAt, &user.State, &user.Role)
 		if err != nil {
 			return []domain.UserProfileDTO{}, fmt.Errorf("unable to scan row from DB: %w", err)
 		}

@@ -35,7 +35,7 @@ func NewClickHouse(cfg *config.Config) (*ClickHouse, error) {
 
 func (c *ClickHouse) RateProfile(vote domain.VoteDTO) error {
 	err := c.conn.Exec(context.Background(), `
-	INSERT INTO rating.votes (from_oid, to_oid, emoji_id, voted_at)
+	INSERT INTO rating.emotes (from_oid, to_oid, emoji_id, voted_at)
 	VALUES ($1,$2,$3,$4);
 	`, vote.FromOID, vote.ToOID, vote.EmojiId, vote.VotedAt)
 	if err != nil {
@@ -48,7 +48,7 @@ func (c *ClickHouse) RateProfile(vote domain.VoteDTO) error {
 func (c *ClickHouse) GetVote(vote domain.VoteDTO) (domain.VoteDTO, bool, error) {
 	var dbVote domain.VoteDTO
 	err := c.conn.QueryRow(context.Background(), `
-		SELECT from_oid, to_oid, emoji_id, voted_at FROM rating.votes
+		SELECT from_oid, to_oid, emoji_id, voted_at FROM rating.emotes
 		WHERE from_oid = $1 AND to_oid = $2;
 	`, vote.FromOID, vote.ToOID).Scan(&dbVote.FromOID, &dbVote.ToOID, &dbVote.EmojiId, &dbVote.VotedAt)
 	if err != nil {
@@ -63,7 +63,7 @@ func (c *ClickHouse) GetVote(vote domain.VoteDTO) (domain.VoteDTO, bool, error) 
 func (c *ClickHouse) LastVotedAt(vote domain.VoteDTO) (time.Time, error) {
 	var lastVoted time.Time
 	err := c.conn.QueryRow(context.Background(), `
-		SELECT voted_at FROM rating.votes
+		SELECT voted_at FROM rating.emotes
 		WHERE from_oid = $1
 		ORDER BY voted_at DESC 
 		LIMIT 1;
@@ -80,7 +80,7 @@ func (c *ClickHouse) LastVotedAt(vote domain.VoteDTO) (time.Time, error) {
 func (c *ClickHouse) UpdateProfileRating(vote domain.VoteDTO, oldValue int32) error {
 
 	err := c.conn.Exec(context.Background(), `
-		ALTER TABLE rating.votes
+		ALTER TABLE rating.emotes
 		UPDATE emoji_id = $1, voted_at = $2
 		WHERE from_oid = $3 AND to_oid = $4;
 	`, vote.EmojiId, vote.VotedAt, vote.FromOID, vote.ToOID)
@@ -95,7 +95,7 @@ func (c *ClickHouse) GetRating(userId uuid.UUID) (int, error) {
 	var rating uint64
 	err := c.conn.QueryRow(context.Background(), `
 	SELECT COUNT(*)
-    FROM rating.votes
+    FROM rating.emotes
 	WHERE to_oid = $1;
 	`, userId).Scan(&rating)
 	if err != nil {
@@ -104,13 +104,42 @@ func (c *ClickHouse) GetRating(userId uuid.UUID) (int, error) {
 	return int(rating), nil
 }
 
+func (c *ClickHouse) GetRatingForList(oids []uuid.UUID) (map[uuid.UUID]int, error) {
+	query := "SELECT to_oid, COUNT(*) FROM rating.emotes WHERE to_oid IN ("
+	for _, oid := range oids {
+		query += fmt.Sprintf("'%s',", oid.String())
+	}
+	query = query[:len(query)-1] + ") GROUP BY to_oid;"
+
+	ratings := make(map[uuid.UUID]int, len(oids))
+
+	rows, err := c.conn.Query(context.Background(), query)
+	if err != nil {
+		return map[uuid.UUID]int{}, fmt.Errorf("GetRatingForList: unable to execute query to DB: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var oid uuid.UUID
+		var rating uint64
+		err := rows.Scan(&oid, &rating)
+		if err != nil {
+			return map[uuid.UUID]int{}, fmt.Errorf("GetRatingForList: scan the row: %w", err)
+		}
+
+		ratings[oid] = int(rating)
+	}
+
+	return ratings, nil
+
+}
+
 func (c *ClickHouse) GetRatingSeparately(userId uuid.UUID) (string, error) {
 	ratings := map[int]int{1: 0, 2: 0, 3: 0, 4: 0, 5: 0}
 	for i := 0; i < len(ratings); i++ {
 		var rating uint64
 		err := c.conn.QueryRow(context.Background(), `
 		SELECT COUNT(*)
-		FROM rating.votes
+		FROM rating.emotes
 		WHERE to_oid = $1 AND emoji_id = $2;
 		`, userId, i+1).Scan(&rating)
 		if err != nil {
@@ -127,5 +156,3 @@ func (c *ClickHouse) GetRatingSeparately(userId uuid.UUID) (string, error) {
 
 	return ratingStr, nil
 }
-
-// "emoji_id: %d, count: %d; "
