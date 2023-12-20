@@ -24,7 +24,7 @@ import (
 type API struct {
 	DB     domain.UserProfileManager
 	Cache  domain.CacheInterface
-	Rating domain.RatingManager
+	Rating domain.StatsManager
 }
 
 type CustomClaims struct {
@@ -432,8 +432,9 @@ func (a *API) HandleGetUsersList(c echo.Context) error {
 	fmt.Println(len(users), ratings)
 
 	for i, user := range users {
-		if ratings[user.OID] > 0 {
-			users[i].Rating = ratings[user.OID]
+
+		if rating, ok := ratings[user.OID]; ok {
+			users[i].Rating = rating
 		}
 
 	}

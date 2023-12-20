@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 
 	"git.foxminded.ua/foxstudent106264/task-3.5/cmd/internal/domain"
@@ -105,15 +106,19 @@ func (c *ClickHouse) GetRating(userId uuid.UUID) (int, error) {
 }
 
 func (c *ClickHouse) GetRatingForList(oids []uuid.UUID) (map[uuid.UUID]int, error) {
-	query := "SELECT to_oid, COUNT(*) FROM rating.emotes WHERE to_oid IN ("
-	for _, oid := range oids {
-		query += fmt.Sprintf("'%s',", oid.String())
+	query := strings.Builder{}
+	query.WriteString("SELECT to_oid, COUNT(*) FROM rating.emotes WHERE to_oid IN (")
+	for i, oid := range oids {
+		query.WriteString(fmt.Sprintf("'%s',", oid.String()))
+		if i == len(oids)-1 {
+			query.WriteString(fmt.Sprintf("'%s'", oid.String()))
+		}
 	}
-	query = query[:len(query)-1] + ") GROUP BY to_oid;"
+	query.WriteString(") GROUP BY to_oid;")
 
 	ratings := make(map[uuid.UUID]int, len(oids))
 
-	rows, err := c.conn.Query(context.Background(), query)
+	rows, err := c.conn.Query(context.Background(), query.String())
 	if err != nil {
 		return map[uuid.UUID]int{}, fmt.Errorf("GetRatingForList: unable to execute query to DB: %w", err)
 	}
@@ -134,8 +139,8 @@ func (c *ClickHouse) GetRatingForList(oids []uuid.UUID) (map[uuid.UUID]int, erro
 }
 
 func (c *ClickHouse) GetRatingSeparately(userId uuid.UUID) (string, error) {
-	ratings := map[int]int{1: 0, 2: 0, 3: 0, 4: 0, 5: 0}
-	for i := 0; i < len(ratings); i++ {
+	ratingBuilder := strings.Builder{}
+	for i := 0; i < 5; i++ {
 		var rating uint64
 		err := c.conn.QueryRow(context.Background(), `
 		SELECT COUNT(*)
@@ -145,14 +150,9 @@ func (c *ClickHouse) GetRatingSeparately(userId uuid.UUID) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("GetRatingSeparately: unable to execute query to DB: %w", err)
 		}
-		ratings[i+1] = int(rating)
+		ratingBuilder.WriteString(fmt.Sprintf("%s:%d; ", emojiStr[i+1], rating))
 	}
 
-	ratingStr := ""
+	return ratingBuilder.String(), nil
 
-	for i := 0; i < len(ratings); i++ {
-		ratingStr += fmt.Sprintf("%s:%d; ", emojiStr[i+1], ratings[i+1])
-	}
-
-	return ratingStr, nil
 }

@@ -35,7 +35,7 @@ type UserProfileManager interface {
 	GetUserState(oid uuid.UUID) (int, error)
 }
 
-type RatingManager interface {
+type StatsManager interface {
 	RateProfile(vote VoteDTO) error
 	GetVote(vote VoteDTO) (VoteDTO, bool, error)
 	LastVotedAt(vote VoteDTO) (time.Time, error)
@@ -47,7 +47,7 @@ type RatingManager interface {
 
 type DomainInterface interface {
 	UserProfileManager
-	RatingManager
+	StatsManager
 }
 
 type CacheInterface interface {
