@@ -22,8 +22,9 @@ import (
 )
 
 type API struct {
-	DB    domain.DomainInterface
-	Cache domain.CacheInterface
+	DB     domain.UserProfileManager
+	Cache  domain.CacheInterface
+	Rating domain.StatsManager
 }
 
 type CustomClaims struct {
@@ -177,8 +178,6 @@ func (a *API) HandleCreateUserProfile(c echo.Context) error {
 	user.CreatedAt = time.Now().UTC()
 	user.UpdatedAt = time.Now().UTC()
 	user.State = domain.Active
-	user.Role = domain.Usr
-	user.Rating = 0
 
 	err = a.DB.CreateUserProfile(user)
 	if err != nil {
@@ -355,12 +354,29 @@ func (a *API) HandleGetUserById(c echo.Context) error {
 		log.Warnf("HandleGetUserById: %s", err)
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to get user profile"})
 	}
+
+	rating, err := a.Rating.GetRatingSeparately(user.OID)
+	if err != nil {
+		log.Warnf("HandleGetUserById: %s", err)
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to get user profile"})
+	}
+
 	err = a.Cache.Set(userID.String(), user)
 	if err != nil {
 		log.Warnf("HandleGetUserById: unable to save cache: %s", err)
 	}
 
-	return c.JSON(http.StatusOK, user)
+	return c.JSON(http.StatusOK, domain.GetProfileDTO{
+		OID:       user.OID,
+		Nickname:  user.Nickname,
+		FirstName: user.FirstName,
+		LastName:  user.LastName,
+		CreatedAt: user.CreatedAt,
+		UpdatedAt: user.UpdatedAt,
+		State:     user.State,
+		Role:      user.Role,
+		Rating:    rating,
+	})
 }
 
 // @Summary Get a paginated list of users
@@ -399,6 +415,28 @@ func (a *API) HandleGetUsersList(c echo.Context) error {
 	if err != nil {
 		log.Warnf("HandleGetUsersList: %s", err)
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to get users list"})
+	}
+
+	var oids []uuid.UUID
+
+	for _, user := range users {
+		oids = append(oids, user.OID)
+	}
+
+	ratings, err := a.Rating.GetRatingForList(oids)
+	if err != nil {
+		log.Warnf("HandleGetUsersList: %s", err)
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to get users list"})
+	}
+
+	fmt.Println(len(users), ratings)
+
+	for i, user := range users {
+
+		if rating, ok := ratings[user.OID]; ok {
+			users[i].Rating = rating
+		}
+
 	}
 
 	totalUsers := len(users)
@@ -476,11 +514,11 @@ func (a *API) HandleVote(c echo.Context) error {
 	vote.VotedAt = time.Now().UTC()
 	if vote.FromOID == vote.ToOID {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "You can't rate yourself"})
-	} else if vote.Value > 1 || vote.Value < -1 || vote.Value == 0 {
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Wrong vote value"})
+	} else if vote.EmojiId > 5 || vote.EmojiId < 1 {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Wrong value"})
 	}
 
-	_, voteExists, err := a.DB.GetVote(vote)
+	_, voteExists, err := a.Rating.GetVote(vote)
 	if err != nil && err != sql.ErrNoRows {
 		log.Warnf("HandleVote: %s", err)
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Unable to check existance of vote"})
@@ -489,7 +527,7 @@ func (a *API) HandleVote(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "You already rated this user"})
 	}
 
-	lastVoted, err := a.DB.LastVotedAt(vote)
+	lastVoted, err := a.Rating.LastVotedAt(vote)
 	if err != nil {
 		log.Warnf("HandleVote: %s", err)
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Unable to existance of vote"})
@@ -498,7 +536,7 @@ func (a *API) HandleVote(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "You already voted in last hour, users can vote only one time per hour"})
 	}
 
-	err = a.DB.RateProfile(vote)
+	err = a.Rating.RateProfile(vote)
 	if err != nil {
 		log.Warnf("HandleVote: %s", err)
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Unable to change the rating"})
@@ -526,16 +564,20 @@ func (a *API) HandleChangeVote(c echo.Context) error {
 	vote.FromOID = userIDFromAuth
 	vote.VotedAt = time.Now().UTC()
 
-	dbVote, _, err := a.DB.GetVote(vote)
+	if vote.EmojiId > 5 || vote.EmojiId < 1 {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Wrong value"})
+	}
+
+	dbVote, _, err := a.Rating.GetVote(vote)
 	if err != nil {
 		log.Warnf("HandleChangeVote: %s", err)
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Unable to get the vote"})
 	}
 
-	if dbVote.Value == vote.Value {
+	if dbVote.EmojiId == vote.EmojiId {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Vote is the same as before"})
 	}
-	err = a.DB.UpdateProfileRating(vote, dbVote.Value)
+	err = a.Rating.UpdateProfileRating(vote, dbVote.EmojiId)
 	if err != nil {
 		log.Warnf("HandleChangeVote: %s", err)
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Unable to change the vote"})

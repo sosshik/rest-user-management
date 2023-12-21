@@ -91,8 +91,8 @@ func (d *Database) GetPassword(username string) (string, error) {
 func (d *Database) CreateUserProfile(user domain.UserProfileDTO) error {
 
 	_, err := d.DB.Exec(`
-		CALL public.create_profile($1, $2, $3, $4, $5, $6, $7, $8, $9,$10)
-	`, user.OID, user.Nickname, user.FirstName, user.LastName, user.Password, user.CreatedAt, user.UpdatedAt, user.State, user.Role, user.Rating)
+		CALL public.create_profile($1, $2, $3, $4, $5, $6, $7, $8, $9)
+	`, user.OID, user.Nickname, user.FirstName, user.LastName, user.Password, user.CreatedAt, user.UpdatedAt, user.State, user.Role)
 	if err != nil {
 		return fmt.Errorf("unable to execute query to DB: %w", err)
 	}
@@ -125,8 +125,8 @@ func (d *Database) UpdatePassword(newPass string, userID uuid.UUID) error {
 func (d *Database) GetUserById(userID uuid.UUID) (domain.UserProfileDTO, error) {
 	var user UserProfile
 	err := d.DB.QueryRow(`
-		CALL public.get_user($1, $2, $3, $4, $5, $6, $7,$8, $9);
-	`, userID, &user.Nickname, &user.FirstName, &user.LastName, &user.CreatedAt, &user.UpdatedAt, &user.State, &user.Role, &user.Rating).Scan(&user.Nickname, &user.FirstName, &user.LastName, &user.CreatedAt, &user.UpdatedAt, &user.State, &user.Role, &user.Rating)
+		CALL public.get_user($1, $2, $3, $4, $5, $6, $7,$8);
+	`, userID, &user.Nickname, &user.FirstName, &user.LastName, &user.CreatedAt, &user.UpdatedAt, &user.State, &user.Role).Scan(&user.Nickname, &user.FirstName, &user.LastName, &user.CreatedAt, &user.UpdatedAt, &user.State, &user.Role)
 	if err != nil {
 		return domain.UserProfileDTO{}, fmt.Errorf("unable to execute query to DB: %w", err)
 	}
@@ -156,7 +156,7 @@ func (d *Database) GetUsersList(pageSize int, offset int) ([]domain.UserProfileD
 
 	for rows.Next() {
 		var user UserProfile
-		err := rows.Scan(&user.OID, &user.Nickname, &user.FirstName, &user.LastName, &user.CreatedAt, &user.UpdatedAt, &user.State, &user.Role, &user.Rating)
+		err := rows.Scan(&user.OID, &user.Nickname, &user.FirstName, &user.LastName, &user.CreatedAt, &user.UpdatedAt, &user.State, &user.Role)
 		if err != nil {
 			return []domain.UserProfileDTO{}, fmt.Errorf("unable to scan row from DB: %w", err)
 		}
@@ -221,116 +221,5 @@ func (d *Database) DeleteUser(oid uuid.UUID) error {
 	if err != nil {
 		return fmt.Errorf("unable to execute query to DB: %w", err)
 	}
-	return nil
-}
-
-func (d *Database) RateProfile(vote domain.VoteDTO) error {
-	tx, err := d.DB.Begin()
-	if err != nil {
-		return fmt.Errorf("RateProfile: unable to begin transaction: %w", err)
-	}
-	defer func() {
-		if p := recover(); p != nil {
-			tx.Rollback()
-			panic(p)
-		} else if err != nil {
-			tx.Rollback()
-		} else {
-			err = tx.Commit()
-			if err != nil {
-				log.Warnf("RateProfile: unable to commit transaction: %s", err)
-			}
-		}
-	}()
-
-	_, err = tx.Exec(`
-	UPDATE user_profiles 
-    SET rating = rating + $1
-	WHERE oid = $2
-	`, vote.Value, vote.ToOID)
-	if err != nil {
-		return fmt.Errorf("RateProfile: unable to execute query to DB: %w", err)
-	}
-
-	_, err = tx.Exec(`
-	INSERT INTO votes (from_oid, to_oid, value, voted_at)
-	VALUES ($1,$2,$3,$4);
-	`, vote.FromOID, vote.ToOID, vote.Value, vote.VotedAt)
-	if err != nil {
-		return fmt.Errorf("RateProfile: unable to execute query to DB: %w", err)
-	}
-
-	return nil
-}
-
-func (d *Database) GetVote(vote domain.VoteDTO) (domain.VoteDTO, bool, error) {
-	var dbVote domain.VoteDTO
-	err := d.DB.QueryRow(`
-		SELECT from_oid, to_oid, value, voted_at FROM votes
-		WHERE from_oid = $1 AND to_oid = $2;
-	`, vote.FromOID, vote.ToOID).Scan(&dbVote.FromOID, &dbVote.ToOID, &dbVote.Value, &dbVote.VotedAt)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return domain.VoteDTO{}, false, err
-		}
-		return domain.VoteDTO{}, false, fmt.Errorf("GetVote: unable to execute query to DB: %w", err)
-	}
-	return dbVote, true, nil
-}
-
-func (d *Database) LastVotedAt(vote domain.VoteDTO) (time.Time, error) {
-	var lastVoted time.Time
-	err := d.DB.QueryRow(`
-		SELECT voted_at FROM votes
-		WHERE from_oid = $1
-		ORDER BY voted_at DESC 
-		LIMIT 1;
-	`, vote.FromOID).Scan(&lastVoted)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return time.Time{}, nil
-		}
-		return time.Time{}, fmt.Errorf("LastVotedAt: unable to execute query to DB: %w", err)
-	}
-	return lastVoted, nil
-}
-
-func (d *Database) UpdateProfileRating(vote domain.VoteDTO, oldValue int) error {
-	tx, err := d.DB.Begin()
-	if err != nil {
-		return fmt.Errorf("UpdateProfileRating: unable to begin transaction: %w", err)
-	}
-	defer func() {
-		if p := recover(); p != nil {
-			tx.Rollback()
-			panic(p)
-		} else if err != nil {
-			tx.Rollback()
-		} else {
-			err = tx.Commit()
-			if err != nil {
-				log.Printf("UpdateProfileRating: unable to commit transaction: %v", err)
-			}
-		}
-	}()
-
-	_, err = tx.Exec(`
-		UPDATE user_profiles
-		SET rating = (rating - $1) + $2
-		WHERE oid = $3;
-	`, oldValue, vote.Value, vote.ToOID)
-	if err != nil {
-		return fmt.Errorf("UpdateProfileRating: unable to execute query to update user_profiles: %w", err)
-	}
-
-	_, err = tx.Exec(`
-		UPDATE votes
-		SET value = $1, voted_at = $2
-		WHERE from_oid = $3 AND to_oid = $4;
-	`, vote.Value, vote.VotedAt, vote.FromOID, vote.ToOID)
-	if err != nil {
-		return fmt.Errorf("UpdateProfileRating: unable to execute query to update votes: %w", err)
-	}
-
 	return nil
 }

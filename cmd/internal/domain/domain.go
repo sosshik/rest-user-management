@@ -35,16 +35,19 @@ type UserProfileManager interface {
 	GetUserState(oid uuid.UUID) (int, error)
 }
 
-type VotesManager interface {
+type StatsManager interface {
 	RateProfile(vote VoteDTO) error
 	GetVote(vote VoteDTO) (VoteDTO, bool, error)
 	LastVotedAt(vote VoteDTO) (time.Time, error)
-	UpdateProfileRating(vote VoteDTO, oldRating int) error
+	UpdateProfileRating(vote VoteDTO, oldRating int32) error
+	GetRating(userId uuid.UUID) (int, error)
+	GetRatingSeparately(userId uuid.UUID) (string, error)
+	GetRatingForList(oids []uuid.UUID) (map[uuid.UUID]int, error)
 }
 
 type DomainInterface interface {
 	UserProfileManager
-	VotesManager
+	StatsManager
 }
 
 type CacheInterface interface {
@@ -67,10 +70,22 @@ type UserProfileDTO struct {
 	Rating    int       `json:"rating"`
 }
 
+type GetProfileDTO struct {
+	OID       uuid.UUID `json:"oid"`
+	Nickname  string    `json:"nickname"`
+	FirstName string    `json:"first_name"`
+	LastName  string    `json:"last_name"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	State     State     `json:"state"`
+	Role      Role      `json:"user_role"`
+	Rating    string    `json:"rating"`
+}
+
 type VoteDTO struct {
 	FromOID uuid.UUID `json:"from_oid"`
 	ToOID   uuid.UUID `json:"oid"`
-	Value   int       `json:"value"`
+	EmojiId int32     `json:"emoji"`
 	VotedAt time.Time `json:"voted_at"`
 }
 

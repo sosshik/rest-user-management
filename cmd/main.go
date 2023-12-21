@@ -7,6 +7,7 @@ import (
 	"git.foxminded.ua/foxstudent106264/task-3.5/cmd/internal/api"
 	"git.foxminded.ua/foxstudent106264/task-3.5/cmd/internal/cache"
 	"git.foxminded.ua/foxstudent106264/task-3.5/cmd/internal/database"
+	"git.foxminded.ua/foxstudent106264/task-3.5/cmd/internal/rating"
 	"git.foxminded.ua/foxstudent106264/task-3.5/pkg/config"
 	"github.com/joho/godotenv"
 	"github.com/labstack/echo/v4"
@@ -54,7 +55,12 @@ func main() {
 	}
 	defer db.DB.Close()
 
-	api := api.API{DB: db, Cache: cache.NewRedis(cfg.Redis.Addr, cfg.Redis.DBIndex, cfg.Redis.ExpTimeSeconds)}
+	rating, err := rating.NewClickHouse(cfg)
+	if err != nil {
+		log.Warn(err)
+	}
+
+	api := api.API{DB: db, Cache: cache.NewRedis(cfg.Redis.Addr, cfg.Redis.DBIndex, cfg.Redis.ExpTimeSeconds), Rating: rating}
 
 	e := echo.New()
 
@@ -70,8 +76,6 @@ func main() {
 	e.DELETE("/api/users/:id", api.HandleDeleteUser, api.JWTMiddleware)
 	e.POST("/api/vote", api.HandleVote, api.JWTMiddleware)
 	e.PUT("/api/vote", api.HandleChangeVote, api.JWTMiddleware)
-
-	fmt.Println(cfg)
 
 	e.Logger.Fatal(e.Start(":" + cfg.Port))
 
