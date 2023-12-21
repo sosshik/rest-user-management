@@ -109,14 +109,15 @@ func (c *ClickHouse) GetRatingForList(oids []uuid.UUID) (map[uuid.UUID]int, erro
 	query := strings.Builder{}
 	query.WriteString("SELECT to_oid, COUNT(*) FROM rating.emotes WHERE to_oid IN (")
 	for i, oid := range oids {
-		query.WriteString(fmt.Sprintf("'%s',", oid.String()))
-		if i == len(oids)-1 {
-			query.WriteString(fmt.Sprintf("'%s'", oid.String()))
+		if i > 0 {
+			query.WriteString(",")
 		}
+
+		query.WriteString(fmt.Sprintf("'%s',", oid.String()))
 	}
 	query.WriteString(") GROUP BY to_oid;")
 
-	ratings := make(map[uuid.UUID]int, len(oids))
+	ratings := make(map[uuid.UUID]int)
 
 	rows, err := c.conn.Query(context.Background(), query.String())
 	if err != nil {
@@ -140,17 +141,17 @@ func (c *ClickHouse) GetRatingForList(oids []uuid.UUID) (map[uuid.UUID]int, erro
 
 func (c *ClickHouse) GetRatingSeparately(userId uuid.UUID) (string, error) {
 	ratingBuilder := strings.Builder{}
-	for i := 0; i < 5; i++ {
+	for emojiId, emoji := range emojiStr {
 		var rating uint64
 		err := c.conn.QueryRow(context.Background(), `
 		SELECT COUNT(*)
 		FROM rating.emotes
 		WHERE to_oid = $1 AND emoji_id = $2;
-		`, userId, i+1).Scan(&rating)
+		`, userId, emojiId).Scan(&rating)
 		if err != nil {
 			return "", fmt.Errorf("GetRatingSeparately: unable to execute query to DB: %w", err)
 		}
-		ratingBuilder.WriteString(fmt.Sprintf("%s:%d; ", emojiStr[i+1], rating))
+		ratingBuilder.WriteString(fmt.Sprintf("%s:%d; ", emoji, rating))
 	}
 
 	return ratingBuilder.String(), nil
