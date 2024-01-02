@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	"git.foxminded.ua/foxstudent106264/task-3.5/cmd/internal/domain"
 	"github.com/redis/go-redis/v9"
+	"github.com/sosshik/rest-user-management/cmd/internal/domain"
 )
 
 type Redis struct {

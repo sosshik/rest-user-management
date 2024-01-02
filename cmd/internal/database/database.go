@@ -6,10 +6,10 @@ import (
 	"sync"
 	"time"
 
-	"git.foxminded.ua/foxstudent106264/task-3.5/cmd/internal/domain"
-	"git.foxminded.ua/foxstudent106264/task-3.5/pkg/config"
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
+	"github.com/sosshik/rest-user-management/cmd/internal/domain"
+	"github.com/sosshik/rest-user-management/pkg/config"
 )
 
 type DBConfig struct {

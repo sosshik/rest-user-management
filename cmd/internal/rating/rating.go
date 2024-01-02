@@ -7,11 +7,11 @@ import (
 	"strings"
 	"time"
 
-	"git.foxminded.ua/foxstudent106264/task-3.5/cmd/internal/domain"
-	"git.foxminded.ua/foxstudent106264/task-3.5/pkg/config"
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 	"github.com/google/uuid"
+	"github.com/sosshik/rest-user-management/cmd/internal/domain"
+	"github.com/sosshik/rest-user-management/pkg/config"
 )
 
 type ClickHouse struct {

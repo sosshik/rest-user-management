@@ -1,4 +1,4 @@
-module git.foxminded.ua/foxstudent106264/task-3.5
+module github.com/sosshik/rest-user-management
 
 go 1.21.0
 

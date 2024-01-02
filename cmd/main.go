@@ -3,17 +3,17 @@ package main
 import (
 	"fmt"
 
-	_ "git.foxminded.ua/foxstudent106264/task-3.5/cmd/docs"
-	"git.foxminded.ua/foxstudent106264/task-3.5/cmd/internal/api"
-	"git.foxminded.ua/foxstudent106264/task-3.5/cmd/internal/cache"
-	"git.foxminded.ua/foxstudent106264/task-3.5/cmd/internal/database"
-	"git.foxminded.ua/foxstudent106264/task-3.5/cmd/internal/rating"
-	"git.foxminded.ua/foxstudent106264/task-3.5/pkg/config"
 	"github.com/joho/godotenv"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	_ "github.com/lib/pq"
 	log "github.com/sirupsen/logrus"
+	_ "github.com/sosshik/rest-user-management/cmd/docs"
+	"github.com/sosshik/rest-user-management/cmd/internal/api"
+	"github.com/sosshik/rest-user-management/cmd/internal/cache"
+	"github.com/sosshik/rest-user-management/cmd/internal/database"
+	"github.com/sosshik/rest-user-management/cmd/internal/rating"
+	"github.com/sosshik/rest-user-management/pkg/config"
 	echoSwagger "github.com/swaggo/echo-swagger"
 )
 

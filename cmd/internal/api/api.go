@@ -13,11 +13,11 @@ import (
 
 	"github.com/redis/go-redis/v9"
 
-	"git.foxminded.ua/foxstudent106264/task-3.5/cmd/internal/domain"
 	"github.com/golang-jwt/jwt"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	log "github.com/sirupsen/logrus"
+	"github.com/sosshik/rest-user-management/cmd/internal/domain"
 	"golang.org/x/crypto/bcrypt"
 )
 

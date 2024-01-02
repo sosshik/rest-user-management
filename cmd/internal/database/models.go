@@ -3,8 +3,8 @@ package database
 import (
 	"time"
 
-	"git.foxminded.ua/foxstudent106264/task-3.5/cmd/internal/domain"
 	"github.com/google/uuid"
+	"github.com/sosshik/rest-user-management/cmd/internal/domain"
 )
 
 type UserProfile struct {
